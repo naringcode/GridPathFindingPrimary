@@ -147,7 +147,7 @@ bool JumpPointSearchPlus1(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                 std::max(destDx, destDy) <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])) // 직선 거리 이내에 목표 존재
             {
                 // 원문 : Goal is closer than wall distance or closer than or equal to jump point distance.
-                // 점프 해야 하는 위치가 목표 지점이다.
+                // 점프 해야 하는 위치가 목표 지점이기 때문에 목표 위치에 Target Jump Point를 구성한다.
                 nextNode = &posToPathFindingNodeMap[staticMap->ConvertToNodeIdx(destPos.x, destPos.y)];
                 {
                     nextNode->x = destPos.x;
@@ -162,8 +162,8 @@ bool JumpPointSearchPlus1(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                       destDy <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])))  // 세로 거리 이내에 목표가 존재
             {
                 // 원문 : Goal is closer or equal in either row or column than wall or jump point distance.
-                // 가로 혹은 세로 거리 이내에 목표가 있다면 환승 지점(Target Jump Point)을 구성한다.
-                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어서 도달할 것이기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
+                // 가로 혹은 세로 거리 이내에 목표에 도달할 수 있을 것으로 "예상"된다면 환승 지점(Target Jump Point)을 구성한다.
+                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어야 목표에 도달할 수도 있기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
                 Vec2D<i32> toward  = ConvertToDeltaPos(adjDir, minDiff); // adjDir 방향에 minDiff를 곱하여 움직일 거리를 계산함.
                 
                 nextNode = &posToPathFindingNodeMap[staticMap->ConvertToNodeIdx(processingPos.x + toward.x, processingPos.y + toward.y)];
@@ -334,7 +334,7 @@ bool JumpPointSearchPlus2(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                 std::max(destDx, destDy) <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])) // 직선 거리 이내에 목표 존재
             {
                 // 원문 : Goal is closer than wall distance or closer than or equal to jump point distance.
-                // 점프 해야 하는 위치가 목표 지점이다.
+                // 점프 해야 하는 위치가 목표 지점이기 때문에 목표 위치에 Target Jump Point를 구성한다.
                 nextNode = &tls_PosToPathFindingNodeMap[staticMap->ConvertToNodeIdx(destPos.x, destPos.y)];
                 {
                     nextNode->x = destPos.x;
@@ -349,8 +349,8 @@ bool JumpPointSearchPlus2(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                       destDy <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])))  // 세로 거리 이내에 목표가 존재
             {
                 // 원문 : Goal is closer or equal in either row or column than wall or jump point distance.
-                // 가로 혹은 세로 거리 이내에 목표가 있다면 환승 지점(Target Jump Point)을 구성한다.
-                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어서 도달할 것이기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
+                // 가로 혹은 세로 거리 이내에 목표에 도달할 수 있을 것으로 "예상"된다면 환승 지점(Target Jump Point)을 구성한다.
+                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어야 목표에 도달할 수도 있기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
                 Vec2D<i32> toward  = ConvertToDeltaPos(adjDir, minDiff); // adjDir 방향에 minDiff를 곱하여 움직일 거리를 계산함.
                 
                 nextNode = &tls_PosToPathFindingNodeMap[staticMap->ConvertToNodeIdx(processingPos.x + toward.x, processingPos.y + toward.y)];
@@ -530,7 +530,7 @@ bool JumpPointSearchPlus3(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                 std::max(destDx, destDy) <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])) // 직선 거리 이내에 목표 존재
             {
                 // 원문 : Goal is closer than wall distance or closer than or equal to jump point distance.
-                // 점프 해야 하는 위치가 목표 지점이다.
+                // 점프 해야 하는 위치가 목표 지점이기 때문에 목표 위치에 Target Jump Point를 구성한다.
                 nextNode = &tls_PosToPathFindingNodeMap[staticMap->ConvertToNodeIdx(destPos.x, destPos.y)];
                 {
                     nextNode->x = destPos.x;
@@ -545,8 +545,8 @@ bool JumpPointSearchPlus3(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                       destDy <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])))  // 세로 거리 이내에 목표가 존재
             {
                 // 원문 : Goal is closer or equal in either row or column than wall or jump point distance.
-                // 가로 혹은 세로 거리 이내에 목표가 있다면 환승 지점(Target Jump Point)을 구성한다.
-                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어서 도달할 것이기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
+                // 가로 혹은 세로 거리 이내에 목표에 도달할 수 있을 것으로 "예상"된다면 환승 지점(Target Jump Point)을 구성한다.
+                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어야 목표에 도달할 수도 있기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
                 Vec2D<i32> toward  = ConvertToDeltaPos(adjDir, minDiff); // adjDir 방향에 minDiff를 곱하여 움직일 거리를 계산함.
                 
                 nextNode = &tls_PosToPathFindingNodeMap[staticMap->ConvertToNodeIdx(processingPos.x + toward.x, processingPos.y + toward.y)];
@@ -739,7 +739,7 @@ bool JumpPointSearchPlus4(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                 std::max(destDx, destDy) <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])) // 직선 거리 이내에 목표 존재
             {
                 // 원문 : Goal is closer than wall distance or closer than or equal to jump point distance.
-                // 점프 해야 하는 위치가 목표 지점이다.
+                // 점프 해야 하는 위치가 목표 지점이기 때문에 목표 위치에 Target Jump Point를 구성한다.
                 nextNode = &tls_PathFindingNodes[staticMap->ConvertToNodeIdx(destPos.x, destPos.y)];
                 {
                     nextNode->x = destPos.x;
@@ -754,8 +754,8 @@ bool JumpPointSearchPlus4(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32
                       destDy <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])))  // 세로 거리 이내에 목표가 존재
             {
                 // 원문 : Goal is closer or equal in either row or column than wall or jump point distance.
-                // 가로 혹은 세로 거리 이내에 목표가 있다면 환승 지점(Target Jump Point)을 구성한다.
-                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어서 도달할 것이기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
+                // 가로 혹은 세로 거리 이내에 목표에 도달할 수 있을 것으로 "예상"된다면 환승 지점(Target Jump Point)을 구성한다.
+                i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어야 목표에 도달할 수도 있기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
                 Vec2D<i32> toward  = ConvertToDeltaPos(adjDir, minDiff); // adjDir 방향에 minDiff를 곱하여 움직일 거리를 계산함.
                 
                 nextNode = &tls_PathFindingNodes[staticMap->ConvertToNodeIdx(processingPos.x + toward.x, processingPos.y + toward.y)];
@@ -975,7 +975,7 @@ bool JumpPointSearchPlusAdvance(std::shared_ptr<PathFindingContext>& pathFinding
                     std::max(destDx, destDy) <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])) // 직선 거리 이내에 목표 존재
                 {
                     // 원문 : Goal is closer than wall distance or closer than or equal to jump point distance.
-                    // 점프 해야 하는 위치가 목표 지점이다.
+                    // 점프 해야 하는 위치가 목표 지점이기 때문에 목표 위치에 Target Jump Point를 구성한다.
                     nextNode = pathFindingContext->GetOrCreatePathFindingNodeAt(destPos.x, destPos.y);
                     distance = processingNode->g + std::max(abs(destDx), abs(destDy));
                 }
@@ -985,8 +985,8 @@ bool JumpPointSearchPlusAdvance(std::shared_ptr<PathFindingContext>& pathFinding
                           destDy <= abs(jumpPointNode.jumpDistanceTable[(i32)adjDir])))  // 세로 거리 이내에 목표가 존재
                 {
                     // 원문 : Goal is closer or equal in either row or column than wall or jump point distance.
-                    // 가로 혹은 세로 거리 이내에 목표가 있다면 환승 지점(Target Jump Point)을 구성한다.
-                    i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어서 도달할 것이기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
+                    // 가로 혹은 세로 거리 이내에 목표에 도달할 수 있을 것으로 "예상"된다면 환승 지점(Target Jump Point)을 구성한다.
+                    i32        minDiff = std::min(destDx, destDy); // 한 번 꺾어야 목표에 도달할 수도 있기 때문에 가로 거리와 세로 거리 중 값이 작은 것은 선택함.
                     Vec2D<i32> toward  = ConvertToDeltaPos(adjDir, minDiff); // adjDir 방향에 minDiff를 곱하여 움직일 거리를 계산함.
 
                     nextNode = pathFindingContext->GetOrCreatePathFindingNodeAt(processingPos.x + toward.x, processingPos.y + toward.y);

@@ -200,7 +200,7 @@ export namespace PathFinding
             AdjacentDirection dir = ConvertToNodeDirection(dx, dy);
 
             // 방향 검증
-            if (AdjacentDirection::InvalidDirection == dir)
+            if (dir == AdjacentDirection::InvalidDirection)
                 return false;
 
             // 위치 검증
@@ -222,7 +222,7 @@ export namespace PathFinding
         //     AdjacentDirection dir = ConvertToNodeDirection(dx, dy);
         // 
         //     // 방향 검증
-        //     if (AdjacentDirection::InvalidDirection == dir)
+        //     if (dir == AdjacentDirection::InvalidDirection)
         //         return kNullNodeInvalidDirection;
         // 
         //     // 위치 검증

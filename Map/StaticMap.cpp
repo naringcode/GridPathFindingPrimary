@@ -335,7 +335,7 @@ bool StaticMap::HasLineOfSight_BresenhamLines(const Vec2D<i32>& startPos, const 
     return true;
 }
 
-bool PathFinding::StaticMap::HasLineOfSight_OrthogonalSteps(const Vec2D<i32>& startPos, const Vec2D<i32>& destPos) const
+bool StaticMap::HasLineOfSight_OrthogonalSteps(const Vec2D<i32>& startPos, const Vec2D<i32>& destPos) const
 {
     /**
      * 테스트해보니 Bresenham Line은 어떤 타일을 통과하는지 감지하지 못 하는 문제가 발생했다.
@@ -398,7 +398,7 @@ bool PathFinding::StaticMap::HasLineOfSight_OrthogonalSteps(const Vec2D<i32>& st
     return true;
 }
 
-bool PathFinding::StaticMap::HasLineOfSight_SupercoverLines(const Vec2D<i32>& startPos, const Vec2D<i32>& destPos) const
+bool StaticMap::HasLineOfSight_SupercoverLines(const Vec2D<i32>& startPos, const Vec2D<i32>& destPos) const
 {
     /**
      * 테스트해보니 Bresenham Line은 어떤 타일을 통과하는지 감지하지 못 하는 문제가 발생했다.

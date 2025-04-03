@@ -36,6 +36,24 @@ struct SimpleContext_UnorderedMap // std::unordered_map
 
     bool usePathFindingId  = false;
     ui32 currPathFindingId = 0;
+
+    PathFindingNode* GetOrCreatePathFindingNodeAt(i32 x, i32 y)
+    {
+        i32 nodeIdx = staticMap->ConvertToNodeIdx(x, y);
+
+        // 위치를 Key로 하여 노드를 찾는다.
+        PathFindingNode& pathFindingNode = (*pathFindingNodeTable)[nodeIdx];
+
+        if (this->usePathFindingId == true && pathFindingNode.pathFindingId != this->currPathFindingId)
+        {
+            pathFindingNode.isInOpenSet   = false;
+            pathFindingNode.isInClosedSet = false;
+
+            pathFindingNode.pathFindingId = this->currPathFindingId;
+        }
+
+        return &pathFindingNode;
+    }
 };
 
 struct SimpleContext_Vector // std::vector
@@ -54,8 +72,25 @@ struct SimpleContext_Vector // std::vector
     // 비용이 저렴한 노드를 찾기 위한 우선순위 큐(OpenSet)
     PointerPriorityQueue<PathFindingNode*, PathFindingNodeComp>* pathFindingNodePQ;
 
-    bool usePathFindingId  = false;
     ui32 currPathFindingId = 0;
+
+    PathFindingNode* GetOrCreatePathFindingNodeAt(i32 x, i32 y)
+    {
+        i32 nodeIdx = staticMap->ConvertToNodeIdx(x, y);
+
+        // 위치를 인덱스로 하여 노드를 찾는다.
+        PathFindingNode& pathFindingNode = (*pathFindingNodeTable)[nodeIdx];
+        
+        if (pathFindingNode.pathFindingId != this->currPathFindingId)
+        {
+            pathFindingNode.isInOpenSet   = false;
+            pathFindingNode.isInClosedSet = false;
+
+            pathFindingNode.pathFindingId = this->currPathFindingId;
+        }
+
+        return &pathFindingNode;
+    }
 };
 
 // OpenNode
@@ -111,18 +146,19 @@ bool SimpleContext_EnqueueOrUpdatePathNode(SimpleContext* simpleContext,
     // 
     // // OpenSet에 추가
     // simpleContext->tls_PathFindingNodePQ.Enqueue(nextNode);
+    
+    PathFindingNode* nextNode       = simpleContext->GetOrCreatePathFindingNodeAt(nextPos.x, nextPos.y);
+    PathFindingNode* processingNode = simpleContext->GetOrCreatePathFindingNodeAt(processingPos.x, processingPos.y);
 
-    PathFindingNode* nextNode       = &(*simpleContext->pathFindingNodeTable)[simpleContext->staticMap->ConvertToNodeIdx(nextPos.x, nextPos.y)];
-    PathFindingNode* processingNode = &(*simpleContext->pathFindingNodeTable)[simpleContext->staticMap->ConvertToNodeIdx(processingPos.x, processingPos.y)];
-
-    // 길찾기 아이디가 일치하지 않으면 새로운 탐색으로 간주한다.
-    if (simpleContext->usePathFindingId == true && nextNode->pathFindingId != simpleContext->currPathFindingId)
-    {
-        nextNode->isInOpenSet   = false;
-        nextNode->isInClosedSet = false;
-
-        nextNode->pathFindingId = simpleContext->currPathFindingId;
-    }
+    // 함수로 기능을 옮겼다.
+    // // 길찾기 아이디가 일치하지 않으면 새로운 탐색으로 간주한다.
+    // if (simpleContext->usePathFindingId == true && nextNode->pathFindingId != simpleContext->currPathFindingId)
+    // {
+    //     nextNode->isInOpenSet   = false;
+    //     nextNode->isInClosedSet = false;
+    // 
+    //     nextNode->pathFindingId = simpleContext->currPathFindingId;
+    // }
 
     // 이미 사용된 노드
     if (nextNode->isInClosedSet == true)
@@ -182,9 +218,17 @@ bool SimpleContext_SearchHorizontal(SimpleContext* simpleContext, const Vec2D<i3
         
         // 탐색 정보 갱신
         herePos.x += dx;
-        g         += kGridCardinalCost;
+        
+        // PathFindingNode* hereNode = &(*simpleContext->pathFindingNodeTable)[simpleContext->staticMap->ConvertToNodeIdx(herePos.x, herePos.y)];
+        // 
+        // // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        // if (hereNode->isInClosedSet == true)
+        //     return false;
 
+        // 비용 갱신
         f32 heuristic = CalculateHeuristicCost(simpleContext->heuristicType, (f32)(destPos.x - herePos.x), (f32)(destPos.y - herePos.y), simpleContext->heuristicWeight);
+        g += kGridCardinalCost;
         
         // 목표 도달
         if (herePos.x == destPos.x && herePos.y == destPos.y)
@@ -214,6 +258,14 @@ bool SimpleContext_SearchHorizontal(SimpleContext* simpleContext, const Vec2D<i3
         // 코너 쪽에서 강제 이웃이 발견된 상태
         if (nextDirectionFlags |= (i32)JpsDirectionFlags::None)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
+            PathFindingNode* hereNode = simpleContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+
+            // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+            // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+            if (hereNode->isInClosedSet == true)
+                return false;
+
             // 이동 방향 계승
             nextDirectionFlags |= ConvertToJpsDirectionFlags(dx, 0);
 
@@ -243,9 +295,17 @@ bool SimpleContext_SearchVertical(SimpleContext* simpleContext, const Vec2D<i32>
         
         // 탐색 정보 갱신
         herePos.y += dy;
-        g         += kGridCardinalCost;
 
+        // PathFindingNode* hereNode = &(*simpleContext->pathFindingNodeTable)[simpleContext->staticMap->ConvertToNodeIdx(herePos.x, herePos.y)];
+        // 
+        // // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        // if (hereNode->isInClosedSet == true)
+        //     return false;
+
+        // 비용 갱신
         f32 heuristic = CalculateHeuristicCost(simpleContext->heuristicType, (f32)(destPos.x - herePos.x), (f32)(destPos.y - herePos.y), simpleContext->heuristicWeight);
+        g += kGridCardinalCost;
         
         // 목표 도달
         if (herePos.x == destPos.x && herePos.y == destPos.y)
@@ -275,6 +335,14 @@ bool SimpleContext_SearchVertical(SimpleContext* simpleContext, const Vec2D<i32>
         // 코너 쪽에서 강제 이웃이 발견된 상태
         if (nextDirectionFlags |= (i32)JpsDirectionFlags::None)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
+            PathFindingNode* hereNode = simpleContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+            
+            // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+            // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+            if (hereNode->isInClosedSet == true)
+                return false;
+
             // 이동 방향 계승
             nextDirectionFlags |= ConvertToJpsDirectionFlags(0, dy);
 
@@ -305,9 +373,17 @@ bool SimpleContext_SearchDiagonal(SimpleContext* simpleContext, const Vec2D<i32>
         // 탐색 정보 갱신
         herePos.x += dx;
         herePos.y += dy;
-        g         += kGridDiagonalCost;
-        
+
+        // PathFindingNode* hereNode = &(*simpleContext->pathFindingNodeTable)[simpleContext->staticMap->ConvertToNodeIdx(herePos.x, herePos.y)];
+        // 
+        // // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        // if (hereNode->isInClosedSet == true)
+        //     return false;
+
+        // 비용 갱신
         f32 heuristic = CalculateHeuristicCost(simpleContext->heuristicType, (f32)(destPos.x - herePos.x), (f32)(destPos.y - herePos.y), simpleContext->heuristicWeight);
+        g += kGridDiagonalCost;
         
         // 목표 도달
         if (herePos.x == destPos.x && herePos.y == destPos.y)
@@ -350,6 +426,14 @@ bool SimpleContext_SearchDiagonal(SimpleContext* simpleContext, const Vec2D<i32>
         // 코너 쪽에서 강제 이웃이 발견된 상태
         if (nextDirectionFlags |= (i32)JpsDirectionFlags::None)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
+            PathFindingNode* hereNode = simpleContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+            
+            // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+            // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+            if (hereNode->isInClosedSet == true)
+                return false;
+
             // 이동 방향 계승
             nextDirectionFlags |= ConvertToJpsDirectionFlags(dx,  0); // 수평
             nextDirectionFlags |= ConvertToJpsDirectionFlags( 0, dy); // 수직
@@ -366,6 +450,14 @@ bool SimpleContext_SearchDiagonal(SimpleContext* simpleContext, const Vec2D<i32>
          * 수직 + 수평 방향을 탐색할 때 대각선의 분해 방향을 위임하는 것이 핵심이며,
          * 이를 통해 강제 이웃이 발생하는 지점을 발견할 수 있다.
          */
+
+        // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
+        PathFindingNode* hereNode = simpleContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+        
+        // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        if (hereNode->isInClosedSet == true)
+            return false;
 
         // 수평 방향 탐색
         if (SimpleContext_SearchHorizontal(simpleContext, herePos, dx, g) == true)
@@ -490,9 +582,17 @@ bool PathFindingContext_SearchHorizontal(std::shared_ptr<PathFindingContext>& pa
 
         // 탐색 정보 갱신
         herePos.x += dx;
-        g         += kGridCardinalCost;
 
+        // PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+        // 
+        // // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        // if (hereNode->isInClosedSet == true)
+        //     return false;
+
+        // 비용 갱신
         f32 heuristic = CalculateHeuristicCost(heuristicType, (f32)(destPos.x - herePos.x), (f32)(destPos.y - herePos.y), heuristicWeight);
+        g += kGridCardinalCost;
 
         // 기록
         pathFindingRecord->AddVisitedNode(herePos.x, herePos.y, processingPos.x, processingPos.y, g + heuristic, g, heuristic);
@@ -500,6 +600,7 @@ bool PathFindingContext_SearchHorizontal(std::shared_ptr<PathFindingContext>& pa
         // 목표 도달
         if (herePos.x == destPos.x && herePos.y == destPos.y)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
             PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
 
             // 여기서 처리하지 않는다(해당 위치의 OpenNode를 꺼내는 쪽에서 길찾기를 끝내는 것이 자연스러움).
@@ -530,7 +631,13 @@ bool PathFindingContext_SearchHorizontal(std::shared_ptr<PathFindingContext>& pa
         // 코너 쪽에서 강제 이웃이 발견된 상태
         if (nextDirectionFlags |= (i32)JpsDirectionFlags::None)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
             PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+            
+            // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+            // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+            if (hereNode->isInClosedSet == true)
+                return false;
 
             // 이동 방향 계승
             nextDirectionFlags |= ConvertToJpsDirectionFlags(dx, 0);
@@ -565,9 +672,17 @@ bool PathFindingContext_SearchVertical(std::shared_ptr<PathFindingContext>& path
 
         // 탐색 정보 갱신
         herePos.y += dy;
-        g         += kGridCardinalCost;
 
+        // PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+        // 
+        // // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        // if (hereNode->isInClosedSet == true)
+        //     return false;
+
+        // 비용 갱신
         f32 heuristic = CalculateHeuristicCost(heuristicType, (f32)(destPos.x - herePos.x), (f32)(destPos.y - herePos.y), heuristicWeight);
+        g += kGridCardinalCost;
 
         // 기록
         pathFindingRecord->AddVisitedNode(herePos.x, herePos.y, processingPos.x, processingPos.y, g + heuristic, g, heuristic);
@@ -575,6 +690,7 @@ bool PathFindingContext_SearchVertical(std::shared_ptr<PathFindingContext>& path
         // 목표 도달
         if (herePos.x == destPos.x && herePos.y == destPos.y)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
             PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
 
             // 여기서 처리하지 않는다(해당 위치의 OpenNode를 꺼내는 쪽에서 길찾기를 끝내는 것이 자연스러움).
@@ -605,7 +721,13 @@ bool PathFindingContext_SearchVertical(std::shared_ptr<PathFindingContext>& path
         // 코너 쪽에서 강제 이웃이 발견된 상태
         if (nextDirectionFlags |= (i32)JpsDirectionFlags::None)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
             PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+
+            // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+            // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+            if (hereNode->isInClosedSet == true)
+                return false;
 
             // 이동 방향 계승
             nextDirectionFlags |= ConvertToJpsDirectionFlags(0, dy);
@@ -641,9 +763,17 @@ bool PathFindingContext_SearchDiagonal(std::shared_ptr<PathFindingContext>& path
         // 탐색 정보 갱신
         herePos.x += dx;
         herePos.y += dy;
-        g         += kGridDiagonalCost;
 
+        // PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+        // 
+        // // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        // if (hereNode->isInClosedSet == true)
+        //     return false;
+
+        // 비용 갱신
         f32 heuristic = CalculateHeuristicCost(heuristicType, (f32)(destPos.x - herePos.x), (f32)(destPos.y - herePos.y), heuristicWeight);
+        g += kGridDiagonalCost;
 
         // 기록
         pathFindingRecord->AddVisitedNode(herePos.x, herePos.y, processingPos.x, processingPos.y, g + heuristic, g, heuristic);
@@ -651,6 +781,7 @@ bool PathFindingContext_SearchDiagonal(std::shared_ptr<PathFindingContext>& path
         // 목표 도달
         if (herePos.x == destPos.x && herePos.y == destPos.y)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
             PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
 
             // 여기서 처리하지 않는다(해당 위치의 OpenNode를 꺼내는 쪽에서 길찾기를 끝내는 것이 자연스러움).
@@ -694,7 +825,13 @@ bool PathFindingContext_SearchDiagonal(std::shared_ptr<PathFindingContext>& path
         // 코너 쪽에서 강제 이웃이 발견된 상태
         if (nextDirectionFlags |= (i32)JpsDirectionFlags::None)
         {
+            // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
             PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+
+            // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+            // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+            if (hereNode->isInClosedSet == true)
+                return false;
 
             // 이동 방향 계승
             nextDirectionFlags |= ConvertToJpsDirectionFlags(dx,  0); // 수평
@@ -712,7 +849,14 @@ bool PathFindingContext_SearchDiagonal(std::shared_ptr<PathFindingContext>& path
          * 수직 + 수평 방향을 탐색할 때 대각선의 분해 방향을 위임하는 것이 핵심이며,
          * 이를 통해 강제 이웃이 발생하는 지점을 발견할 수 있다.
          */
+
+         // 정말 필요할 때만 꺼내서 검사해야 캐시 미스가 날 확률이 줄어든다(성능 차이 대략 2배 정도 남).
         PathFindingNode* hereNode = pathFindingContext->GetOrCreatePathFindingNodeAt(herePos.x, herePos.y);
+
+        // 해당 위치가 이미 탐색된 상태면 빠져나온다.
+        // 이를 허용하는 것은 맵을 빙 둘러서 탐색하겠다는 것과 같은 의미이기 때문에 생략하는 것이 좋다.
+        if (hereNode->isInClosedSet == true)
+            return false;
 
         // 수평 방향 탐색
         if (PathFindingContext_SearchHorizontal(pathFindingContext, staticMap, pathFindingRecord, *hereNode, dx, g) == true)
@@ -784,7 +928,7 @@ bool JumpPointSearch1(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32>& s
     }
     
     // 최초 OpenSet에 삽입
-    PathFindingNode* startNode = &(*simpleContext.pathFindingNodeTable)[staticMap->ConvertToNodeIdx(startPos.x, startPos.y)];
+    PathFindingNode* startNode = simpleContext.GetOrCreatePathFindingNodeAt(startPos.x, startPos.y);
     {
         startNode->x = startPos.x;
         startNode->y = startPos.y;
@@ -912,7 +1056,7 @@ bool JumpPointSearch2(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32>& s
     }
     
     // 최초 OpenSet에 삽입
-    PathFindingNode* startNode = &(*simpleContext.pathFindingNodeTable)[staticMap->ConvertToNodeIdx(startPos.x, startPos.y)];
+    PathFindingNode* startNode = simpleContext.GetOrCreatePathFindingNodeAt(startPos.x, startPos.y);
     {
         startNode->x = startPos.x;
         startNode->y = startPos.y;
@@ -1049,7 +1193,7 @@ bool JumpPointSearch3(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32>& s
     }
 
     // 최초 OpenSet에 삽입(완전 초기화 진행)
-    PathFindingNode* startNode = &(*simpleContext.pathFindingNodeTable)[staticMap->ConvertToNodeIdx(startPos.x, startPos.y)];
+    PathFindingNode* startNode = simpleContext.GetOrCreatePathFindingNodeAt(startPos.x, startPos.y);
     {
         startNode->x = startPos.x;
         startNode->y = startPos.y;
@@ -1187,12 +1331,11 @@ bool JumpPointSearch4(std::shared_ptr<StaticMap>& staticMap, const Vec2D<i32>& s
 
         simpleContext.pathFindingNodePQ = &tls_PathFindingNodePQ;
 
-        simpleContext.usePathFindingId  = true;
         simpleContext.currPathFindingId = kPathFindingId;
     }
 
     // 최초 OpenSet에 삽입(완전 초기화 진행)
-    PathFindingNode* startNode = &(*simpleContext.pathFindingNodeTable)[staticMap->ConvertToNodeIdx(startPos.x, startPos.y)];
+    PathFindingNode* startNode = simpleContext.GetOrCreatePathFindingNodeAt(startPos.x, startPos.y);
     {
         startNode->x = startPos.x;
         startNode->y = startPos.y;
